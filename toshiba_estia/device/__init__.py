@@ -157,6 +157,8 @@ class ToshibaAcDevice:
             await self.on_energy_consumption_changed_callback(self)
 
     async def send_state_to_ac(self, state: ToshibaAcFcuState) -> None:
+        logger.error(f"Sending commands to HP is disabled for the moment")
+
         # TODO: Disabled on purpose
         #await self.amqp_api.send_message(str(fcu_to_ac))
 
