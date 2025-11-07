@@ -140,7 +140,7 @@ class ToshibaAcFcuState:
             self._new_heating_active,          # Byte 5 - Water function activated
             self._water_operation_mode,        # Byte 6 - Operation mode - Heat/Cool/Auto
             self._zone1_target_temperature,    # Byte 7 - Heating Target temperature
-            -,                                 # Byte 8 - Old heating target temperature
+            _,                                 # Byte 8 - Old heating target temperature
             self._outdoor_unit_heat,           # Byte 9 - Outdoor unit active for heating
             self._heating_coil_heat,           # Byte 10 - Heating coil active for heating
             self._ac_outdoor_temperature,      # Byte 11
