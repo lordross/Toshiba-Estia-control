@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class ToshibaAcAmqpApi:
-    COMMANDS = ["CMD_FCU_FROM_AC", "CMD_HEARTBEAT"]
+    COMMANDS = ["CMD_HEARTBEAT_ESTIA", "CMD_HDU_FROM_ESTIA"]
     _HANDLER_TYPE = t.Callable[[str, str, list[JSONSerializable], dict[str, JSONSerializable], str], None]
 
     def __init__(self, sas_token: str, new_sas_token_required_callback: t.Callable[[], t.Awaitable[str]]) -> None:

@@ -67,8 +67,9 @@ class ToshibaAcDeviceManager:
 
                 if not self.amqp_api:
                     self.amqp_api = ToshibaAcAmqpApi(self.sas_token, self.renew_sas_token)
-                    self.amqp_api.register_command_handler("CMD_FCU_FROM_AC", self.handle_cmd_fcu_from_ac)
-                    self.amqp_api.register_command_handler("CMD_HEARTBEAT", self.handle_cmd_heartbeat)
+                    self.amqp_api.register_command_handler("CMD_HEARTBEAT_ESTIA", self.handle_cmd_heartbeat_estia)
+                    self.amqp_api.register_command_handler("CMD_HDU_FROM_ESTIA", self.handle_cmd_hcu_from_estia)
+
                     await self.amqp_api.connect()
 
                 return self.sas_token
@@ -190,13 +191,14 @@ class ToshibaAcDeviceManager:
 
                 await asyncio.gather(*connects)
 
-                if any(device.supported.ac_energy_report for device in self.devices.values()):
-                    await self.fetch_energy_consumption()
+                # TODO: Restore energy consumption fetching
+                # if any(device.supported.ac_energy_report for device in self.devices.values()):
+                #     await self.fetch_energy_consumption()
 
-                    if not self.periodic_fetch_energy_consumption_task:
-                        self.periodic_fetch_energy_consumption_task = asyncio.get_running_loop().create_task(
-                            self.periodic_fetch_energy_consumption()
-                        )
+                #     if not self.periodic_fetch_energy_consumption_task:
+                #         self.periodic_fetch_energy_consumption_task = asyncio.get_running_loop().create_task(
+                #             self.periodic_fetch_energy_consumption()
+                #         )
 
             return list(self.devices.values())
 
@@ -208,7 +210,7 @@ class ToshibaAcDeviceManager:
 
         raise ToshibaAcDeviceManagerError("Not connected")
 
-    def handle_cmd_fcu_from_ac(
+    def handle_cmd_heartbeat_estia(
         self,
         source_id: str,
         message_id: str,
@@ -216,9 +218,9 @@ class ToshibaAcDeviceManager:
         payload: dict[str, JSONSerializable],
         timestamp: str,
     ) -> None:
-        asyncio.run_coroutine_threadsafe(self.devices[source_id].handle_cmd_fcu_from_ac(payload), self.loop).result()
+        asyncio.run_coroutine_threadsafe(self.devices[source_id].handle_cmd_heartbeat_estia(payload), self.loop).result()
 
-    def handle_cmd_heartbeat(
+    def handle_cmd_hcu_from_estia(
         self,
         source_id: str,
         message_id: str,
@@ -226,7 +228,7 @@ class ToshibaAcDeviceManager:
         payload: dict[str, JSONSerializable],
         timestamp: str,
     ) -> None:
-        asyncio.run_coroutine_threadsafe(self.devices[source_id].handle_cmd_heartbeat(payload), self.loop).result()
+        asyncio.run_coroutine_threadsafe(self.devices[source_id].handle_cmd_hcu_from_estia(payload), self.loop).result()
 
     @property
     def on_sas_token_updated_callback(self) -> ToshibaAcSasTokenUpdatedCallback:

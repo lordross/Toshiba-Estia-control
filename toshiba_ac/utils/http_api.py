@@ -34,12 +34,21 @@ class ToshibaAcDeviceInfo:
     merit_feature: str
     ac_model_id: str
 
+@dataclass
+class EstiaWaterTemperatureInfo:
+    two: int
+    twi: int
+    tho: int
+    to: int
+    tfi: int
+    room_water: int
 
 @dataclass
 class ToshibaAcDeviceAdditionalInfo:
     cdu: t.Optional[str]
     fcu: t.Optional[str]
-
+    serial_number: t.Optional[str]
+    temperatures: t.Optional[EstiaWaterTemperatureInfo]
 
 class ToshibaAcHttpApiError(Exception):
     pass
@@ -53,8 +62,8 @@ class ToshibaAcHttpApi:
     BASE_URL = "https://mobileapi.toshibahomeaccontrols.com"
     LOGIN_PATH = "/api/Consumer/Login"
     REGISTER_PATH = "/api/Consumer/RegisterMobileDevice"
-    AC_MAPPING_PATH = "/api/AC/GetConsumerACMapping"
-    AC_STATE_PATH = "/api/AC/GetCurrentACState"
+    AC_MAPPING_PATH = "/api/Estia/GetConsumerEstiaMapping"
+    AC_STATE_PATH = "/api/Estia/GetCurrentEstiaStateByUniqueDeviceId"
     AC_ENERGY_CONSUMPTION_PATH = "/api/AC/GetGroupACEnergyConsumption"
 
     def __init__(self, username: str, password: str) -> None:
@@ -121,10 +130,9 @@ class ToshibaAcHttpApi:
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
         }
-        post = {"Username": self.username, "Password": self.password}
+        post = {"username": self.username, "password": self.password}
 
         res = await self.request_api(self.LOGIN_PATH, post=post, headers=headers)
-
         self.access_token = res["access_token"]
         self.access_token_type = res["token_type"]
         self.consumer_id = res["consumerId"]
@@ -158,12 +166,16 @@ class ToshibaAcHttpApi:
                     )
                 )
 
+        logging.debug(f"devices from remote: {devices}")
+
         return devices
 
     async def get_device_state(self, ac_id: str) -> str:
         get = {
-            "ACId": ac_id,
+            "deviceuniqueId": ac_id,
         }
+
+        logger.debug(f"Requesting state for device_id: {ac_id}")
 
         res = await self.request_api(self.AC_STATE_PATH, get=get)
 
@@ -177,8 +189,10 @@ class ToshibaAcHttpApi:
 
     async def get_device_additional_info(self, ac_id: str) -> ToshibaAcDeviceAdditionalInfo:
         get = {
-            "ACId": ac_id,
+            "deviceuniqueId": ac_id,
         }
+
+        logger.debug(f"Requesting extended info for device_id: {ac_id}")
 
         res = await self.request_api(self.AC_STATE_PATH, get=get)
 
@@ -192,7 +206,18 @@ class ToshibaAcHttpApi:
         except (KeyError, TypeError):
             fcu = None
 
-        return ToshibaAcDeviceAdditionalInfo(cdu=cdu, fcu=fcu)
+        serial_number = res["Fcu"]["serial_number"]
+
+        water_temp = EstiaWaterTemperatureInfo(
+            two = int(res["TWO_Temp"], 16),
+            twi = int(res["TWI_Temp"], 16),
+            tho = int(res["THO_Temp"], 16),
+            to = int(res["TO_Temp"], 16),
+            tfi = int(res["TFI_Temp"],16),
+            room_water = int(res["RoomWater_temp"], 16)
+        )
+
+        return ToshibaAcDeviceAdditionalInfo(cdu=cdu, fcu=fcu, serial_number=serial_number, temperatures=water_temp)
 
     async def get_devices_energy_consumption(
         self, ac_unique_ids: t.List[str]
