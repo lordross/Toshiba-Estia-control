@@ -49,8 +49,8 @@ def get_config() -> VersioneerConfig:
     cfg.VCS = "git"
     cfg.style = "pep440"
     cfg.tag_prefix = "v"
-    cfg.parentdir_prefix = "toshiba-ac-"
-    cfg.versionfile_source = "toshiba_ac/_version.py"
+    cfg.parentdir_prefix = "toshiba-estia-"
+    cfg.versionfile_source = "toshiba_estia/_version.py"
     cfg.verbose = False
     return cfg
 

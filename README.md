@@ -13,8 +13,8 @@ Download using pip
 ### Installation for development
 1. Download or clone this repository to desired directory:
 
-    `git clone https://github.com/KaSroka/Toshiba-AC-control.git`
-2. Install toshiba-ac package:
+    `git clone https://github.com/lordross/Toshiba-Estia-control.git`
+2. Install toshiba-estia package:
 
     `pip3 install .`
 

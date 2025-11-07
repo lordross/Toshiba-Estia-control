@@ -20,7 +20,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from toshiba_ac.device.properties import (
+from toshiba_estia.device.properties import (
     ToshibaAcMode,
     EstiaWaterMode,
     ToshibaAcStatus,

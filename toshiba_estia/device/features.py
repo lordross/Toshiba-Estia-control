@@ -18,12 +18,12 @@ import logging
 import struct
 import typing as t
 
-from toshiba_ac.device.properties import (
+from toshiba_estia.device.properties import (
     ToshibaAcMode,
     EstiaWaterMode,
     ToshibaAcStatus,
 )
-from toshiba_ac.utils import pretty_enum_name
+from toshiba_estia.utils import pretty_enum_name
 
 logger = logging.getLogger(__name__)
 

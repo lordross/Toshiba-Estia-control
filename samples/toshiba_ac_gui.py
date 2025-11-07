@@ -19,23 +19,20 @@ import os
 import tkinter as tk
 from tkinter import ttk
 
-from toshiba_ac.device.properties import (
-    ToshibaAcAirPureIon,
-    ToshibaAcFanMode,
-    ToshibaAcMeritA,
-    ToshibaAcMeritB,
+from toshiba_estia.device.properties import (
     ToshibaAcMode,
-    ToshibaAcPowerSelection,
     ToshibaAcStatus,
-    ToshibaAcSwingMode,
 )
-from toshiba_ac.device_manager import ToshibaAcDeviceManager
+from toshiba_estia.device_manager import ToshibaAcDeviceManager
 
-toshiba_logger = logging.getLogger("toshiba_ac")
+toshiba_logger = logging.getLogger("toshiba_estia")
 logging.basicConfig(level=logging.WARNING, format="[%(asctime)s] %(levelname)-8s %(name)s: %(message)s")
 toshiba_logger.setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+loop = asyncio.new_event_loop()
+
 
 
 class DeviceTab:
@@ -51,12 +48,12 @@ class App(tk.Tk):
         self.password = password
         self.title("Toshiba AC")
         self.protocol("WM_DELETE_WINDOW", self.close)
-        self.updater_task = asyncio.get_event_loop().create_task(self.updater(refresh_interval))
+        self.updater_task = loop.create_task(self.updater(refresh_interval))
         self.tab_control = ttk.Notebook()
         self.devices = {}
-
+        print("INIT")
         # This is called before loop is started so we can use run_until_complete
-        asyncio.get_event_loop().run_until_complete(asyncio.gather(self.init()))
+        loop.run_until_complete(self.init())
 
     def populate_device_tab_enum(self, dev_tab, var_name, enum, setter, row):
         string_var = tk.StringVar()
@@ -70,7 +67,7 @@ class App(tk.Tk):
             btn = ttk.Button(
                 dev_tab.tab,
                 text=option.title().replace("_", " "),
-                command=lambda opt=option: asyncio.get_running_loop().create_task(setter(enum[opt])),
+                command=lambda opt=option: loop.create_task(setter(enum[opt])),
             )
             btn.grid(column=i, row=row, padx=0, pady=0)
 
@@ -89,19 +86,19 @@ class App(tk.Tk):
         temp_req.set(dev_tab.device.ac_temperature)
         temp_req.trace_add(
             "write",
-            lambda *_: asyncio.get_running_loop().create_task(dev_tab.device.set_ac_temperature(temp_req.get())),
+            lambda *_: loop.create_task(dev_tab.device.set_ac_temperature(temp_req.get())),
         )
 
-        self.populate_device_tab_enum(dev_tab, "ac_fan_mode", ToshibaAcFanMode, dev_tab.device.set_ac_fan_mode, 3)
-        self.populate_device_tab_enum(dev_tab, "ac_swing_mode", ToshibaAcSwingMode, dev_tab.device.set_ac_swing_mode, 4)
-        self.populate_device_tab_enum(
-            dev_tab, "ac_power_selection", ToshibaAcPowerSelection, dev_tab.device.set_ac_power_selection, 5
-        )
-        self.populate_device_tab_enum(dev_tab, "ac_merit_b", ToshibaAcMeritB, dev_tab.device.set_ac_merit_b, 6)
-        self.populate_device_tab_enum(dev_tab, "ac_merit_a", ToshibaAcMeritA, dev_tab.device.set_ac_merit_a, 7)
-        self.populate_device_tab_enum(
-            dev_tab, "ac_air_pure_ion", ToshibaAcAirPureIon, dev_tab.device.set_ac_air_pure_ion, 8
-        )
+#        self.populate_device_tab_enum(dev_tab, "ac_fan_mode", ToshibaAcFanMode, dev_tab.device.set_ac_fan_mode, 3)
+#        self.populate_device_tab_enum(dev_tab, "ac_swing_mode", ToshibaAcSwingMode, dev_tab.device.set_ac_swing_mode, 4)
+        # self.populate_device_tab_enum(
+        #     dev_tab, "ac_power_selection", ToshibaAcPowerSelection, dev_tab.device.set_ac_power_selection, 5
+        # )
+        # self.populate_device_tab_enum(dev_tab, "ac_merit_b", ToshibaAcMeritB, dev_tab.device.set_ac_merit_b, 6)
+        # self.populate_device_tab_enum(dev_tab, "ac_merit_a", ToshibaAcMeritA, dev_tab.device.set_ac_merit_a, 7)
+        # self.populate_device_tab_enum(
+        #     dev_tab, "ac_air_pure_ion", ToshibaAcAirPureIon, dev_tab.device.set_ac_air_pure_ion, 8
+        # )
 
         dev_tab.ac_indoor_temperature = tk.StringVar()
 
@@ -126,27 +123,28 @@ class App(tk.Tk):
         self.update_ac_state(dev_tab)
 
     def update_ac_state_entry(self, dev_tab, entry_name, title):
-        getattr(dev_tab, entry_name).set(
-            f'{title}: {getattr(dev_tab.device, entry_name).name.title().replace("_", " ")}'
-        )
+        return
+#        getattr(dev_tab, entry_name).set(
+#            f'{title}: {getattr(dev_tab.device, entry_name).name.title().replace("_", " ")}'
+#        )
 
     def update_ac_state(self, dev_tab):
         self.update_ac_state_entry(dev_tab, "ac_status", "Power")
         self.update_ac_state_entry(dev_tab, "ac_mode", "Mode")
-        dev_tab.ac_temperature.set(f"Temperature: {dev_tab.device.ac_temperature}")
+#        dev_tab.ac_temperature.set(f"Temperature: {dev_tab.device.ac_temperature}")
         self.update_ac_state_entry(dev_tab, "ac_fan_mode", "Fan mode")
         self.update_ac_state_entry(dev_tab, "ac_swing_mode", "Swing mode")
         self.update_ac_state_entry(dev_tab, "ac_power_selection", "Power selection")
         self.update_ac_state_entry(dev_tab, "ac_merit_b", "Merit B feature")
         self.update_ac_state_entry(dev_tab, "ac_merit_a", "Merit A feature")
         self.update_ac_state_entry(dev_tab, "ac_air_pure_ion", "Pure ion")
-        dev_tab.ac_indoor_temperature.set(f"Indoor temperature: {dev_tab.device.ac_indoor_temperature}")
-        dev_tab.ac_outdoor_temperature.set(f"Outdoor temperature: {dev_tab.device.ac_outdoor_temperature}")
+#        dev_tab.ac_indoor_temperature.set(f"Indoor temperature: {dev_tab.device.ac_indoor_temperature}")
+#        dev_tab.ac_outdoor_temperature.set(f"Outdoor temperature: {dev_tab.device.ac_outdoor_temperature}")
         self.update_ac_state_entry(dev_tab, "ac_self_cleaning", "Self cleaning")
-        if dev_tab.device.ac_energy_consumption:
-            dev_tab.ac_energy_consumption.set(
-                f"Energy used {dev_tab.device.ac_energy_consumption.energy_wh}Wh since {dev_tab.device.ac_energy_consumption.since.isoformat()}"
-            )
+        # if dev_tab.device.ac_energy_consumption:
+        #     dev_tab.ac_energy_consumption.set(
+        #         f"Energy used {dev_tab.device.ac_energy_consumption.energy_wh}Wh since {dev_tab.device.ac_energy_consumption.since.isoformat()}"
+        #     )
 
     def dev_state_changed(self, dev):
         self.update_ac_state(self.devices[dev])
@@ -163,8 +161,8 @@ class App(tk.Tk):
             self.populate_device_tab(dev_tab)
             self.devices[device] = dev_tab
 
-            device.on_state_changed_callback.add(self.dev_state_changed)
-            device.on_energy_consumption_changed_callback.add(self.dev_state_changed)
+#            device.on_state_changed_callback.add(self.dev_state_changed)
+#            device.on_energy_consumption_changed_callback.add(self.dev_state_changed)
 
             self.tab_control.add(tab, text=f"{device.name}")
 
@@ -177,10 +175,10 @@ class App(tk.Tk):
 
     def close(self):
         self.updater_task.cancel()
-        asyncio.get_running_loop().create_task(self.device_manager.shutdown()).add_done_callback(self.cleanup)
+        loop.create_task(self.device_manager.shutdown()).add_done_callback(self.cleanup)
 
     def cleanup(self, _):
-        asyncio.get_running_loop().stop()
+        loop.stop()
 
 
 class EnvDefault(argparse.Action):
@@ -219,7 +217,8 @@ def parse_cred():
     return cred.user, cred.password
 
 
+
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
+#    loop = asyncio.get_event_loop()
     app = App(*parse_cred())
     loop.run_forever()

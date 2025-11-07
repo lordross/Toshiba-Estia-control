@@ -1,2 +1,2 @@
 include versioneer.py
-include toshiba_ac/_version.py
+include toshiba_estia/_version.py
