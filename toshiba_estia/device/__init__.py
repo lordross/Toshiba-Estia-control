@@ -254,6 +254,10 @@ class ToshibaAcDevice:
         return self.fcu_state.electric_coil_heat_is_active
 
     @property
+    def ac_energy_consumption(self) -> t.Optional[ToshibaAcDeviceEnergyConsumption]:
+        return self._ac_energy_consumption
+
+    @property
     def on_state_changed_callback(self) -> ToshibaAcDeviceCallback:
         return self._on_state_changed_callback
 

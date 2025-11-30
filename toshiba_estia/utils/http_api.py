@@ -270,6 +270,7 @@ class ToshibaAcHttpApi:
             "Timezone": "UTC",
             "ToUtcTime": str(year + 1),
             "Type": "EnergyYear",
+            "IsEstia": True,
         }
 
         res = await self.request_api(self.AC_ENERGY_CONSUMPTION_PATH, post=post)

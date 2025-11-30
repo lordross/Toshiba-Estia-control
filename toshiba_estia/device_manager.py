@@ -33,7 +33,7 @@ class ToshibaAcSasTokenUpdatedCallback(ToshibaAcCallback[str]):
 
 
 class ToshibaAcDeviceManager:
-    FETCH_ENERGY_CONSUMPTION_PERIOD_MINUTES = 10
+    FETCH_ENERGY_CONSUMPTION_PERIOD_MINUTES = 60
 
     def __init__(
         self,
@@ -191,14 +191,12 @@ class ToshibaAcDeviceManager:
 
                 await asyncio.gather(*connects)
 
-                # TODO: Restore energy consumption fetching
-                # if any(device.supported.ac_energy_report for device in self.devices.values()):
-                #     await self.fetch_energy_consumption()
+                await self.fetch_energy_consumption()
 
-                #     if not self.periodic_fetch_energy_consumption_task:
-                #         self.periodic_fetch_energy_consumption_task = asyncio.get_running_loop().create_task(
-                #             self.periodic_fetch_energy_consumption()
-                #         )
+                if not self.periodic_fetch_energy_consumption_task:
+                    self.periodic_fetch_energy_consumption_task = asyncio.get_running_loop().create_task(
+                        self.periodic_fetch_energy_consumption()
+                    )
 
             return list(self.devices.values())
 
