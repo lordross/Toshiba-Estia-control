@@ -50,6 +50,12 @@ class ToshibaAcDeviceAdditionalInfo:
     serial_number: t.Optional[str]
     temperatures: t.Optional[EstiaWaterTemperatureInfo]
 
+@dataclass
+class ToshibaDevicesCount:
+    total_count: int
+    total_ac: int
+    total_estia: int
+
 class ToshibaAcHttpApiError(Exception):
     pass
 
@@ -63,6 +69,7 @@ class ToshibaAcHttpApi:
     LOGIN_PATH = "/api/Consumer/Login"
     REGISTER_PATH = "/api/Consumer/RegisterMobileDevice"
     AC_MAPPING_PATH = "/api/Estia/GetConsumerEstiaMapping"
+    AC_MAPPING_COUNT_PATH = "/api/AC/GetConsumerACMappingCount"
     AC_STATE_PATH = "/api/Estia/GetCurrentEstiaStateByUniqueDeviceId"
     AC_ENERGY_CONSUMPTION_PATH = "/api/AC/GetGroupACEnergyConsumption"
 
@@ -73,6 +80,7 @@ class ToshibaAcHttpApi:
         self.access_token_type: t.Optional[str] = None
         self.consumer_id: t.Optional[str] = None
         self.session: t.Optional[aiohttp.ClientSession] = None
+        self.device_counts: t.Optional[ToshibaDevicesCount] = None
 
     @retry_with_timeout(timeout=5, retries=3, backoff=60)
     @retry_on_exception(exceptions=ToshibaAcHttpApiError, retries=3, backoff=60)
@@ -141,6 +149,37 @@ class ToshibaAcHttpApi:
         if self.session:
             await self.session.close()
             self.session = None
+
+    async def get_devices_count(self) -> ToshibaDevicesCount:
+        if not self.consumer_id:
+            raise ToshibaAcHttpApiError("Failed to send request, missing consumer id")
+
+        get = {"consumerId": self.consumer_id}
+
+        res = await self.request_api(self.AC_MAPPING_COUNT_PATH, get=get)
+
+        if "TotalCount" not in res:
+            raise ToshibaAcHttpApiError("Missing TotalCount in response")
+
+        if "TotalAC" not in res:
+            raise ToshibaAcHttpApiError("Missing TotalAC in response")
+
+        if "TotalEstia" not in res:
+            raise ToshibaAcHttpApiError("Missing TotalEstia in response")
+
+        self.device_counts = ToshibaDevicesCount(
+            total_count=res["TotalCount"],
+            total_ac=res["TotalAC"],
+            total_estia=res["TotalEstia"],
+        )
+
+        logger.debug(
+            f"Device counts: Total={self.device_counts.total_count}, "
+            f"AC={self.device_counts.total_ac}, "
+            f"Estia={self.device_counts.total_estia}"
+        )
+
+        return self.device_counts
 
     async def get_devices(self) -> t.List[ToshibaAcDeviceInfo]:
         if not self.consumer_id:

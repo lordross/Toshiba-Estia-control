@@ -19,7 +19,7 @@ import typing as t
 from toshiba_estia.device import ToshibaAcDevice
 from toshiba_estia.utils import async_sleep_until_next_multiply_of_minutes, ToshibaAcCallback
 from toshiba_estia.utils.amqp_api import ToshibaAcAmqpApi, JSONSerializable
-from toshiba_estia.utils.http_api import ToshibaAcHttpApi
+from toshiba_estia.utils.http_api import ToshibaAcHttpApi, ToshibaDevicesCount
 
 logger = logging.getLogger(__name__)
 
@@ -201,6 +201,14 @@ class ToshibaAcDeviceManager:
                 #         )
 
             return list(self.devices.values())
+
+
+    async def get_devices_count(self) -> ToshibaDevicesCount:
+        if not self.http_api or not self.amqp_api:
+            raise ToshibaAcDeviceManagerError("Not connected")
+
+        devices_count = await self.http_api.get_devices_count()
+        return devices_count
 
     async def renew_sas_token(self) -> str:
         if self.http_api:
