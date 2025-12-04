@@ -68,7 +68,7 @@ class ToshibaAcDevice:
         self.firmware_version = firmware_version
         self.amqp_api = amqp_api
         self.http_api = http_api
-
+        self._is_online = False
         self.fcu_state = ToshibaAcFcuState.from_hex_state(initial_ac_state)
 
         self.cdu: t.Optional[str] = None
@@ -80,6 +80,7 @@ class ToshibaAcDevice:
         self._on_energy_consumption_changed_callback = ToshibaAcDeviceCallback()
         self._ac_energy_consumption: t.Optional[ToshibaAcDeviceEnergyConsumption] = None
         self.periodic_reload_state_task: t.Optional[asyncio.Task[None]] = None
+
 
     async def connect(self) -> None:
         await self.load_additional_device_info()
@@ -143,12 +144,23 @@ class ToshibaAcDevice:
             self.temperatures.two = int(payload["TWO_temp"], 16)
             self._water_flow_rate = int(payload["FLO"], 16)
         except Exception as e:
-            logger.error(f"ERROR CONVERTING DATA: {e}. Payload: '{payload}'")
+            logger.error(f"Error converting data exception: '{e}' while converting: '{payload}'")
+            pass
 
+        await self.state_changed()
+
+    async def handle_connection_state(self, state: bool) -> None:
+        logger.debug(f"Handling Estia connection state. Is online={state}")
+
+        if self._is_online == state:
+            return
+
+        self._is_online = state
         await self.state_changed()
 
 
     async def handle_update_ac_energy_consumption(self, val: ToshibaAcDeviceEnergyConsumption) -> None:
+
         if self._ac_energy_consumption != val:
             self._ac_energy_consumption = val
 
@@ -256,6 +268,10 @@ class ToshibaAcDevice:
     @property
     def ac_energy_consumption(self) -> t.Optional[ToshibaAcDeviceEnergyConsumption]:
         return self._ac_energy_consumption
+
+    @property
+    def is_online(self) -> t.Optional[bool]:
+        return self._is_online
 
     @property
     def on_state_changed_callback(self) -> ToshibaAcDeviceCallback:

@@ -56,6 +56,11 @@ class ToshibaDevicesCount:
     total_ac: int
     total_estia: int
 
+@dataclass
+class ToshibaDeviceConnectionState:
+    device_id: str
+    online: bool
+
 class ToshibaAcHttpApiError(Exception):
     pass
 
@@ -72,6 +77,7 @@ class ToshibaAcHttpApi:
     AC_MAPPING_COUNT_PATH = "/api/AC/GetConsumerACMappingCount"
     AC_STATE_PATH = "/api/Estia/GetCurrentEstiaStateByUniqueDeviceId"
     AC_ENERGY_CONSUMPTION_PATH = "/api/AC/GetGroupACEnergyConsumption"
+    ALL_DEVICE_STATE_PATH = "/api/AC/GetAllDeviceState"
 
     def __init__(self, username: str, password: str) -> None:
         self.username = username
@@ -301,3 +307,30 @@ class ToshibaAcHttpApi:
             raise ToshibaAcHttpApiError("Malformed SasToken in response")
 
         return res["SasToken"]
+
+    async def get_device_connection_state(self, device_ids: t.List[str]) -> t.List[ToshibaDeviceConnectionState]:
+        post = device_ids
+
+        logger.debug(f"Requesting connection states for device_ids: {device_ids}")
+
+        res = await self.request_api(self.ALL_DEVICE_STATE_PATH, post=post)
+
+        if not isinstance(res, list):
+            raise ToshibaAcHttpApiError("Expected ResObj to be a list")
+
+        connection_states = {}
+        for device_state in res:
+            if "DeviceId" not in device_state:
+                raise ToshibaAcHttpApiError("Missing DeviceId in response")
+
+            if "ConnectionState" not in device_state:
+                raise ToshibaAcHttpApiError("Missing ConnectionState in response")
+
+            connection_states[device_state["DeviceId"]] = ToshibaDeviceConnectionState(
+                device_id=device_state["DeviceId"],
+                online=device_state["ConnectionState"] == "Connected"
+            )
+
+        logger.debug(f"Connection states: {connection_states}")
+
+        return connection_states

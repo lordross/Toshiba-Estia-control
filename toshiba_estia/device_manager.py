@@ -19,7 +19,7 @@ import typing as t
 from toshiba_estia.device import ToshibaAcDevice
 from toshiba_estia.utils import async_sleep_until_next_multiply_of_minutes, ToshibaAcCallback
 from toshiba_estia.utils.amqp_api import ToshibaAcAmqpApi, JSONSerializable
-from toshiba_estia.utils.http_api import ToshibaAcHttpApi, ToshibaDevicesCount
+from toshiba_estia.utils.http_api import ToshibaAcHttpApi, ToshibaDevicesCount, ToshibaDeviceConnectionState
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,7 @@ class ToshibaAcSasTokenUpdatedCallback(ToshibaAcCallback[str]):
 
 class ToshibaAcDeviceManager:
     FETCH_ENERGY_CONSUMPTION_PERIOD_MINUTES = 60
+    FETCH_DEVICE_STATUS_PERIOD_MINUTES = 60
 
     def __init__(
         self,
@@ -51,6 +52,7 @@ class ToshibaAcDeviceManager:
         self.sas_token = sas_token
         self.devices: t.Dict[str, ToshibaAcDevice] = {}
         self.periodic_fetch_energy_consumption_task: t.Optional[asyncio.Task[None]] = None
+        self.periodic_fetch_device_connection_task: t.Optional[asyncio.Task[None]] = None
         self.lock = asyncio.Lock()
         self.loop = asyncio.get_running_loop()
         self._on_sas_token_updated_callback = ToshibaAcSasTokenUpdatedCallback()
@@ -82,9 +84,15 @@ class ToshibaAcDeviceManager:
         async with self.lock:
             tasks: t.List[t.Awaitable[None]] = []
 
+            if self.periodic_fetch_device_connection_task:
+                self.periodic_fetch_device_connection_task.cancel()
+                tasks.append(self.periodic_fetch_device_connection_task)
+
             if self.periodic_fetch_energy_consumption_task:
                 self.periodic_fetch_energy_consumption_task.cancel()
                 tasks.append(self.periodic_fetch_energy_consumption_task)
+
+
 
             tasks.extend(device.shutdown() for device in self.devices.values())
 
@@ -108,6 +116,7 @@ class ToshibaAcDeviceManager:
 
                     raise_all_errors(*results)
             finally:
+                self.periodic_fetch_device_connection_task = None
                 self.periodic_fetch_energy_consumption_task = None
                 self.amqp_api = None
                 self.http_api = None
@@ -147,6 +156,44 @@ class ToshibaAcDeviceManager:
             updates.append(update)
 
         await asyncio.gather(*updates)
+
+    async def periodic_fetch_device_connection(self) -> None:
+        while True:
+            await async_sleep_until_next_multiply_of_minutes(self.FETCH_DEVICE_STATUS_PERIOD_MINUTES)
+            try:
+                await self.fetch_device_status()
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.error(f"Fetching device status failed: {e}")
+                pass
+
+    async def fetch_device_status(self) -> None:
+        if not self.http_api:
+            raise ToshibaAcDeviceManagerError("Not connected")
+
+        devices_connection_status = await self.http_api.get_device_connection_state(
+            [ac_unique_id for ac_unique_id in self.devices.keys()]
+        )
+
+        logger.debug(
+            "Connection status for devices: {"
+            + " ,".join(
+                f"{self.devices[ac_unique_id].name}: {connection_status.online}"
+                for ac_unique_id, connection_status in devices_connection_status.items()
+            )
+            + "}"
+        )
+
+        updates = []
+
+        for ac_unique_id, connection_status in devices_connection_status.items():
+            logger.debug(f"Notify device_id={ac_unique_id} for connection status {connection_status.online}")
+            update = self.devices[ac_unique_id].handle_connection_state(connection_status.online)
+            updates.append(update)
+
+        await asyncio.gather(*updates)
+
 
     async def get_devices(self) -> t.List[ToshibaAcDevice]:
         if not self.http_api or not self.amqp_api:
@@ -198,6 +245,11 @@ class ToshibaAcDeviceManager:
                         self.periodic_fetch_energy_consumption()
                     )
 
+                if not self.periodic_fetch_device_connection_task:
+                    self.periodic_fetch_device_connection_task = asyncio.get_running_loop().create_task(
+                        self.periodic_fetch_device_connection()
+                    )
+
             return list(self.devices.values())
 
 
@@ -207,6 +259,13 @@ class ToshibaAcDeviceManager:
 
         devices_count = await self.http_api.get_devices_count()
         return devices_count
+
+    async def get_device_connection_state(self, device_ids: t.List[str]) -> t.List[ToshibaDeviceConnectionState]:
+        if not self.http_api:
+            raise ToshibaAcDeviceManagerError("Not connected")
+
+        connection_states = await self.http_api.get_device_connection_state(device_ids)
+        return connection_states
 
     async def renew_sas_token(self) -> str:
         if self.http_api:
