@@ -18,7 +18,7 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: "3.11"
-    - name: Install mypy and toshiba-ac
+    - name: Install mypy and toshiba-estia
       run: |
         ls -alh
         pwd
