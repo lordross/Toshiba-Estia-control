@@ -239,6 +239,7 @@ class ToshibaAcDeviceManager:
                 await asyncio.gather(*connects)
 
                 await self.fetch_energy_consumption()
+                await self.fetch_device_status()
 
                 if not self.periodic_fetch_energy_consumption_task:
                     self.periodic_fetch_energy_consumption_task = asyncio.get_running_loop().create_task(
