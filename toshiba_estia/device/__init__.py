@@ -57,7 +57,7 @@ class ToshibaAcDevice:
         initial_ac_state: str,
         firmware_version: str,
         merit_feature: str,
-        ac_model_id: str,
+        model_id: str,
         amqp_api: ToshibaAcAmqpApi,
         http_api: ToshibaAcHttpApi,
     ) -> None:
@@ -70,7 +70,7 @@ class ToshibaAcDevice:
         self.http_api = http_api
         self._is_online = False
         self.fcu_state = ToshibaAcFcuState.from_hex_state(initial_ac_state)
-
+        self._model_id = model_id
         self.cdu: t.Optional[str] = None
         self.fcu: t.Optional[str] = None
         self.serial_number: t.Optional[str] = None
@@ -272,6 +272,10 @@ class ToshibaAcDevice:
     @property
     def is_online(self) -> t.Optional[bool]:
         return self._is_online
+
+    @property
+    def model_id(self) -> t.Optional[str]:
+        return self._model_id
 
     @property
     def on_state_changed_callback(self) -> ToshibaAcDeviceCallback:
